@@ -38,6 +38,22 @@ router.post('/create-operateur', auth, role('admin'), async (req, res) => {
   }
 });
 
+// Changer mot de passe ← AVANT /:id
+router.put('/change-password', auth, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const valid = await bcrypt.compare(oldPassword, rows[0].password);
+    if (!valid)
+      return res.status(400).json({ message: 'Ancien mot de passe incorrect' });
+    const hash = await bcrypt.hash(newPassword, 10);
+    await db.query('UPDATE users SET password=? WHERE id=?', [hash, req.user.id]);
+    res.json({ message: 'Mot de passe modifié' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // Modifier utilisateur
 router.put('/:id', auth, role('admin'), async (req, res) => {
   try {
@@ -57,22 +73,6 @@ router.delete('/:id', auth, role('admin'), async (req, res) => {
   try {
     await db.query('DELETE FROM users WHERE id=?', [req.params.id]);
     res.json({ message: 'Utilisateur supprimé' });
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-});
-
-// Changer mot de passe
-router.put('/change-password', auth, async (req, res) => {
-  try {
-    const { oldPassword, newPassword } = req.body;
-    const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [req.user.id]);
-    const valid = await bcrypt.compare(oldPassword, rows[0].password);
-    if (!valid)
-      return res.status(400).json({ message: 'Ancien mot de passe incorrect' });
-    const hash = await bcrypt.hash(newPassword, 10);
-    await db.query('UPDATE users SET password=? WHERE id=?', [hash, req.user.id]);
-    res.json({ message: 'Mot de passe modifié' });
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur' });
   }

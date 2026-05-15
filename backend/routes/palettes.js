@@ -3,41 +3,33 @@ const auth = require('../middleware/auth');
 const role = require('../middleware/role');
 const db = require('../config/db');
 
-// Ajouter une palette (opérateur + admin)
-router.post('/', auth, async (req, res) => {
+// Palettes de l'opérateur connecté ← DOIT ÊTRE EN PREMIER
+router.get('/my-palettes', auth, async (req, res) => {
   try {
-    const { code_barre, matiere_id, quantite, fournisseur, date_entree } = req.body;
-    if (!matiere_id || !quantite)
-      return res.status(400).json({ message: 'Matière et quantité sont requis' });
-
-    await db.query(
-      'INSERT INTO palettes (code_barre, matiere_id, quantite, fournisseur, date_entree, operateur_id) VALUES (?,?,?,?,?,?)',
-      [code_barre, matiere_id, quantite, fournisseur, date_entree, req.user.id]
+    const [rows] = await db.query(
+      `SELECT p.*, m.nom as matiere_nom
+       FROM palettes p
+       LEFT JOIN matieres m ON p.matiere_id = m.id
+       WHERE p.operateur_id = ?
+       ORDER BY p.scan_time DESC`,
+      [req.user.id]
     );
-
-    // Mettre à jour le stock
-    await db.query(
-      `INSERT INTO stock (matiere_id, total_quantite)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE total_quantite = total_quantite + VALUES(total_quantite)`,
-      [matiere_id, quantite]
-    );
-
-    res.json({ message: 'Palette ajoutée avec succès' });
+    res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    res.status(500).json({ message: 'Erreur serveur' });
   }
 });
 
-// Voir toutes les palettes
-router.get('/', auth, role('admin'), async (req, res) => {
+// Palettes aujourd'hui de l'opérateur connecté
+router.get('/my-palettes/today', auth, async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT p.*, m.nom as matiere_nom, u.name as operateur_nom
+      `SELECT p.*, m.nom as matiere_nom
        FROM palettes p
        LEFT JOIN matieres m ON p.matiere_id = m.id
-       LEFT JOIN users u ON p.operateur_id = u.id
-       ORDER BY p.scan_time DESC`
+       WHERE p.operateur_id = ? AND DATE(p.scan_time) = CURDATE()
+       ORDER BY p.scan_time DESC`,
+      [req.user.id]
     );
     res.json(rows);
   } catch (err) {
@@ -79,6 +71,47 @@ router.get('/matiere/:id/today', auth, async (req, res) => {
   }
 });
 
+// Ajouter une palette
+router.post('/', auth, async (req, res) => {
+  try {
+    const { code_barre, matiere_id, quantite, fournisseur, date_entree } = req.body;
+    if (!matiere_id || !quantite)
+      return res.status(400).json({ message: 'Matière et quantité sont requis' });
+
+    await db.query(
+      'INSERT INTO palettes (code_barre, matiere_id, quantite, fournisseur, date_entree, operateur_id) VALUES (?,?,?,?,?,?)',
+      [code_barre, matiere_id, quantite, fournisseur, date_entree, req.user.id]
+    );
+
+    await db.query(
+      `INSERT INTO stock (matiere_id, total_quantite)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE total_quantite = total_quantite + VALUES(total_quantite)`,
+      [matiere_id, quantite]
+    );
+
+    res.json({ message: 'Palette ajoutée avec succès' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur', error: err.message });
+  }
+});
+
+// Voir toutes les palettes (admin)
+router.get('/', auth, role('admin'), async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT p.*, m.nom as matiere_nom, u.name as operateur_nom
+       FROM palettes p
+       LEFT JOIN matieres m ON p.matiere_id = m.id
+       LEFT JOIN users u ON p.operateur_id = u.id
+       ORDER BY p.scan_time DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur serveur' });
+  }
+});
+
 // Modifier palette
 router.put('/:id', auth, role('admin'), async (req, res) => {
   try {
@@ -98,40 +131,6 @@ router.delete('/:id', auth, role('admin'), async (req, res) => {
   try {
     await db.query('DELETE FROM palettes WHERE id=?', [req.params.id]);
     res.json({ message: 'Palette supprimée' });
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-});
-
-// Palettes de l'opérateur connecté
-router.get('/my-palettes', auth, async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      `SELECT p.*, m.nom as matiere_nom
-       FROM palettes p
-       LEFT JOIN matieres m ON p.matiere_id = m.id
-       WHERE p.operateur_id = ?
-       ORDER BY p.scan_time DESC`,
-      [req.user.id]
-    );
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
-});
-
-// Palettes aujourd'hui de l'opérateur connecté
-router.get('/my-palettes/today', auth, async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      `SELECT p.*, m.nom as matiere_nom
-       FROM palettes p
-       LEFT JOIN matieres m ON p.matiere_id = m.id
-       WHERE p.operateur_id = ? AND DATE(p.scan_time) = CURDATE()
-       ORDER BY p.scan_time DESC`,
-      [req.user.id]
-    );
-    res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Erreur serveur' });
   }

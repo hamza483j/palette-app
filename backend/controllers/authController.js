@@ -6,8 +6,19 @@ require('dotenv').config();
 exports.register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
+
+    // Validations
     if (!name || !email || !password)
       return res.status(400).json({ message: 'Tous les champs sont requis' });
+
+    if (name.length < 2)
+      return res.status(400).json({ message: 'Le nom doit contenir au moins 2 caractères' });
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return res.status(400).json({ message: 'Email invalide' });
+
+    if (password.length < 6)
+      return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères' });
 
     const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length)
@@ -27,8 +38,13 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Validations
     if (!email || !password)
       return res.status(400).json({ message: 'Tous les champs sont requis' });
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return res.status(400).json({ message: 'Email invalide' });
 
     const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
     if (!rows.length)

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   TextInput, Alert, ScrollView, ActivityIndicator
@@ -13,6 +13,27 @@ export default function ProfileScreen({ route, navigation }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ total: 0, today: 0, totalUnites: 0 });
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await axios.get(`${API}/palettes/my-palettes`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const total = res.data.length;
+      const today = res.data.filter(p =>
+        new Date(p.scan_time).toDateString() === new Date().toDateString()
+      ).length;
+      const totalUnites = res.data.reduce((sum, p) => sum + (p.quantite || 0), 0);
+      setStats({ total, today, totalUnites });
+    } catch (err) {
+      console.log(err.message);
+    }
+  };
 
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
@@ -33,7 +54,7 @@ export default function ProfileScreen({ route, navigation }) {
         { oldPassword, newPassword },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      Alert.alert('Succès', 'Mot de passe modifié avec succès !');
+      Alert.alert('✅ Succès', 'Mot de passe modifié avec succès !');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -55,6 +76,7 @@ export default function ProfileScreen({ route, navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+
         {/* Avatar */}
         <View style={styles.avatarSection}>
           <View style={styles.avatar}>
@@ -66,17 +88,31 @@ export default function ProfileScreen({ route, navigation }) {
           </View>
         </View>
 
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{stats.total}</Text>
+            <Text style={styles.statLabel}>Total palettes</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: '#f39c12' }]}>{stats.today}</Text>
+            <Text style={styles.statLabel}>Aujourd'hui</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={[styles.statValue, { color: '#6f42c1' }]}>{stats.totalUnites}</Text>
+            <Text style={styles.statLabel}>Total unités</Text>
+          </View>
+        </View>
+
         {/* Infos */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Informations personnelles</Text>
+          <Text style={styles.cardTitle}>
+            <Text style={{ color: '#00b894' }}>ℹ️ </Text>
+            Informations personnelles
+          </Text>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Nom</Text>
             <Text style={styles.infoValue}>{user.name}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Email</Text>
-            <Text style={styles.infoValue}>{user.email || 'Non renseigné'}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
@@ -87,7 +123,10 @@ export default function ProfileScreen({ route, navigation }) {
 
         {/* Changer mot de passe */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Changer le mot de passe</Text>
+          <Text style={styles.cardTitle}>
+            <Text style={{ color: '#00b894' }}>🔒 </Text>
+            Changer le mot de passe
+          </Text>
 
           <Text style={styles.label}>Ancien mot de passe</Text>
           <TextInput
@@ -123,6 +162,18 @@ export default function ProfileScreen({ route, navigation }) {
             }
           </TouchableOpacity>
         </View>
+
+        {/* Déconnexion */}
+        <TouchableOpacity style={styles.logoutBtn}
+          onPress={() => {
+            Alert.alert('Déconnexion', 'Voulez-vous vous déconnecter ?', [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Oui', onPress: () => navigation.replace('Login') }
+            ]);
+          }}>
+          <Text style={styles.logoutText}>🚪 Se déconnecter</Text>
+        </TouchableOpacity>
+
       </ScrollView>
     </View>
   );
@@ -133,13 +184,17 @@ const styles = StyleSheet.create({
   header: { backgroundColor: '#0f2027', padding: 20, paddingTop: 56, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   back: { color: '#00b894', fontSize: 15, fontWeight: '600' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  content: { padding: 16 },
+  content: { padding: 16, paddingBottom: 40 },
   avatarSection: { alignItems: 'center', marginVertical: 24 },
-  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#00b894', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  avatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#00b894', justifyContent: 'center', alignItems: 'center', marginBottom: 12, shadowColor: '#00b894', shadowOpacity: 0.4, shadowRadius: 10, elevation: 5 },
   avatarText: { color: '#fff', fontSize: 40, fontWeight: 'bold' },
   userName: { fontSize: 22, fontWeight: 'bold', color: '#0f2027', marginBottom: 8 },
   roleBadge: { backgroundColor: '#e8f8f5', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
   roleText: { color: '#00b894', fontWeight: '600' },
+  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  statBox: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  statValue: { fontSize: 24, fontWeight: 'bold', color: '#00b894' },
+  statLabel: { fontSize: 11, color: '#888', marginTop: 4, textAlign: 'center' },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#0f2027', marginBottom: 16 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10 },
@@ -150,4 +205,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 8, fontSize: 15, backgroundColor: '#f8f9fa' },
   btn: { backgroundColor: '#00b894', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 8 },
   btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  logoutBtn: { backgroundColor: '#fdecea', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 20 },
+  logoutText: { color: '#e74c3c', fontWeight: 'bold', fontSize: 16 },
 });
