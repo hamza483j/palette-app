@@ -28,7 +28,10 @@ export default function ScanScreen({ route, navigation }) {
     matiere_id: '',
     quantite: '',
     fournisseur: '',
-    date_entree: new Date().toISOString().split('T')[0]
+    date_entree: new Date().toISOString().split('T')[0],
+    numero_lot: '',
+    date_expiration: '',
+    nombre_cartons: ''
   });
   const scanned = useRef(false);
 
@@ -109,7 +112,10 @@ export default function ScanScreen({ route, navigation }) {
         matiere_id: parseInt(form.matiere_id),
         quantite: parseFloat(form.quantite),
         fournisseur: form.fournisseur,
-        date_entree: form.date_entree
+        date_entree: form.date_entree,
+        numero_lot: form.numero_lot,
+        date_expiration: form.date_expiration,
+        nombre_cartons: form.nombre_cartons ? parseInt(form.nombre_cartons) : null
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -122,7 +128,10 @@ export default function ScanScreen({ route, navigation }) {
         matiere_id: matieres[0]?.id.toString() || '',
         quantite: '',
         fournisseur: '',
-        date_entree: new Date().toISOString().split('T')[0]
+        date_entree: new Date().toISOString().split('T')[0],
+        numero_lot: '',
+        date_expiration: '',
+        nombre_cartons: ''
       });
       setSelectedMatiere(matieres[0] || null);
       scanned.current = false;
@@ -142,7 +151,10 @@ export default function ScanScreen({ route, navigation }) {
       matiere_id: matieres[0]?.id.toString() || '',
       quantite: '',
       fournisseur: '',
-      date_entree: new Date().toISOString().split('T')[0]
+      date_entree: new Date().toISOString().split('T')[0],
+      numero_lot: '',
+      date_expiration: '',
+      nombre_cartons: ''
     });
     setSelectedMatiere(matieres[0] || null);
   };
@@ -176,19 +188,13 @@ export default function ScanScreen({ route, navigation }) {
               keyExtractor={item => item.id.toString()}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[
-                    styles.matiereItem,
-                    selectedMatiere?.id === item.id && styles.matiereItemSelected
-                  ]}
+                  style={[styles.matiereItem, selectedMatiere?.id === item.id && styles.matiereItemSelected]}
                   onPress={() => handleSelectMatiere(item)}
                 >
                   <View style={styles.matiereItemLeft}>
                     <Text style={styles.matiereItemIcon}>📦</Text>
                     <View>
-                      <Text style={[
-                        styles.matiereItemNom,
-                        selectedMatiere?.id === item.id && { color: '#00b894' }
-                      ]}>
+                      <Text style={[styles.matiereItemNom, selectedMatiere?.id === item.id && { color: '#00b894' }]}>
                         {item.nom}
                       </Text>
                       {item.description && (
@@ -221,6 +227,12 @@ export default function ScanScreen({ route, navigation }) {
             onPress={() => navigation.navigate('Profile', { user, token })}>
             <Text style={styles.iconBtnText}>👤</Text>
           </TouchableOpacity>
+          {user.role === 'admin' && (
+            <TouchableOpacity style={styles.adminBtn}
+              onPress={() => navigation.replace('AdminScan', { user, token })}>
+              <Text style={styles.adminBtnText}>👑 Admin</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.logoutBtn}
             onPress={() => navigation.replace('Login')}>
             <Text style={styles.logoutText}>Quitter</Text>
@@ -306,15 +318,10 @@ export default function ScanScreen({ route, navigation }) {
 
             {/* Matière */}
             <Text style={styles.label}>Matière *</Text>
-            <TouchableOpacity
-              style={styles.matiereSelector}
-              onPress={() => setShowMatierePicker(true)}>
+            <TouchableOpacity style={styles.matiereSelector} onPress={() => setShowMatierePicker(true)}>
               <View style={styles.matiereSelectorLeft}>
                 <Text style={styles.matiereSelectorIcon}>📦</Text>
-                <Text style={[
-                  styles.matiereSelectorText,
-                  !selectedMatiere && { color: '#aaa' }
-                ]}>
+                <Text style={[styles.matiereSelectorText, !selectedMatiere && { color: '#aaa' }]}>
                   {selectedMatiere ? selectedMatiere.nom : 'Sélectionner une matière'}
                 </Text>
               </View>
@@ -322,32 +329,36 @@ export default function ScanScreen({ route, navigation }) {
             </TouchableOpacity>
 
             {/* Quantité */}
-            <Text style={styles.label}>Quantité *</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: 100"
-              value={form.quantite}
-              onChangeText={v => setForm({ ...form, quantite: v })}
-              keyboardType="numeric"
-            />
+            <Text style={styles.label}>Quantité * (unités)</Text>
+            <TextInput style={styles.input} placeholder="Ex: 500"
+              value={form.quantite} onChangeText={v => setForm({ ...form, quantite: v })}
+              keyboardType="numeric" />
+
+            {/* Nombre de cartons */}
+            <Text style={styles.label}>Nombre de cartons</Text>
+            <TextInput style={styles.input} placeholder="Ex: 48"
+              value={form.nombre_cartons} onChangeText={v => setForm({ ...form, nombre_cartons: v })}
+              keyboardType="numeric" />
 
             {/* Fournisseur */}
             <Text style={styles.label}>Fournisseur</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Centrale Danone"
-              value={form.fournisseur}
-              onChangeText={v => setForm({ ...form, fournisseur: v })}
-            />
+            <TextInput style={styles.input} placeholder="Ex: Centrale Danone"
+              value={form.fournisseur} onChangeText={v => setForm({ ...form, fournisseur: v })} />
 
-            {/* Date */}
+            {/* Numéro de lot */}
+            <Text style={styles.label}>Numéro de lot</Text>
+            <TextInput style={styles.input} placeholder="Ex: LOT-2026-001"
+              value={form.numero_lot} onChangeText={v => setForm({ ...form, numero_lot: v })} />
+
+            {/* Date d'entrée */}
             <Text style={styles.label}>Date d'entrée</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="YYYY-MM-DD"
-              value={form.date_entree}
-              onChangeText={v => setForm({ ...form, date_entree: v })}
-            />
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD"
+              value={form.date_entree} onChangeText={v => setForm({ ...form, date_entree: v })} />
+
+            {/* Date d'expiration */}
+            <Text style={styles.label}>Date d'expiration</Text>
+            <TextInput style={styles.input} placeholder="YYYY-MM-DD"
+              value={form.date_expiration} onChangeText={v => setForm({ ...form, date_expiration: v })} />
 
             <TouchableOpacity
               style={[styles.submitBtn, (!form.matiere_id || !form.quantite) && { opacity: 0.6 }]}
@@ -379,6 +390,8 @@ const styles = StyleSheet.create({
   iconBtnText: { fontSize: 18 },
   logoutBtn: { backgroundColor: '#ffffff20', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   logoutText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  adminBtn: { backgroundColor: '#f39c1230', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
+  adminBtnText: { color: '#f39c12', fontSize: 12, fontWeight: '600' },
   content: { padding: 16, paddingBottom: 40 },
   todayCard: { backgroundColor: '#0f2027', borderRadius: 16, padding: 20, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   todayLabel: { color: '#ffffff80', fontSize: 13, marginBottom: 4 },
@@ -420,7 +433,6 @@ const styles = StyleSheet.create({
   cancelFormText: { color: '#888', fontSize: 15 },
   btn: { backgroundColor: '#00b894', padding: 14, borderRadius: 10, alignItems: 'center' },
   btnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: '#00000060', justifyContent: 'flex-end' },
   modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '60%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },

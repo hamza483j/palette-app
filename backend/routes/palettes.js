@@ -74,13 +74,19 @@ router.get('/matiere/:id/today', auth, async (req, res) => {
 // Ajouter une palette
 router.post('/', auth, async (req, res) => {
   try {
-    const { code_barre, matiere_id, quantite, fournisseur, date_entree } = req.body;
+    const {
+      code_barre, matiere_id, quantite, fournisseur,
+      date_entree, numero_lot, date_expiration, nombre_cartons
+    } = req.body;
+
     if (!matiere_id || !quantite)
       return res.status(400).json({ message: 'Matière et quantité sont requis' });
 
     await db.query(
-      'INSERT INTO palettes (code_barre, matiere_id, quantite, fournisseur, date_entree, operateur_id) VALUES (?,?,?,?,?,?)',
-      [code_barre, matiere_id, quantite, fournisseur, date_entree, req.user.id]
+      `INSERT INTO palettes 
+       (code_barre, matiere_id, quantite, fournisseur, date_entree, operateur_id, numero_lot, date_expiration, nombre_cartons) 
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [code_barre, matiere_id, quantite, fournisseur, date_entree, req.user.id, numero_lot || null, date_expiration || null, nombre_cartons || null]
     );
 
     await db.query(
@@ -115,10 +121,16 @@ router.get('/', auth, role('admin'), async (req, res) => {
 // Modifier palette
 router.put('/:id', auth, role('admin'), async (req, res) => {
   try {
-    const { code_barre, matiere_id, quantite, fournisseur, date_entree } = req.body;
+    const {
+      code_barre, matiere_id, quantite, fournisseur,
+      date_entree, numero_lot, date_expiration, nombre_cartons
+    } = req.body;
     await db.query(
-      'UPDATE palettes SET code_barre=?, matiere_id=?, quantite=?, fournisseur=?, date_entree=? WHERE id=?',
-      [code_barre, matiere_id, quantite, fournisseur, date_entree, req.params.id]
+      `UPDATE palettes SET 
+       code_barre=?, matiere_id=?, quantite=?, fournisseur=?, 
+       date_entree=?, numero_lot=?, date_expiration=?, nombre_cartons=?
+       WHERE id=?`,
+      [code_barre, matiere_id, quantite, fournisseur, date_entree, numero_lot, date_expiration, nombre_cartons, req.params.id]
     );
     res.json({ message: 'Palette modifiée' });
   } catch (err) {
